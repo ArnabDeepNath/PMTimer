@@ -18,6 +18,19 @@ export default function App() {
     }
   }, []);
 
+  // Update browser tab title with countdown
+  useEffect(() => {
+    const titlePrefix =
+      mode === 'focus'
+        ? '🧠 Focus'
+        : mode === 'shortBreak'
+        ? '☕ Break'
+        : '😌 Long Break';
+
+    document.title = `${formatTime(timer)} | ${titlePrefix}`;
+  }, [timer, mode]);
+
+
   // Reset timer if focus time changes
   useEffect(() => {
     if (mode === 'focus') {
@@ -142,8 +155,8 @@ export default function App() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 py-12">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">Pomodoro Timer</h1>
-      <h2 className='text-2xl font-bold mb-8 text-gray-400'>Developed By Arnab</h2>
+      <h1 className="text-3xl font-bold mb-4 text-gray-800">Pomodoro Timer</h1>
+      <h2 className='text-2xl font-500 mb-8 text-gray-400'>Developed By Arnab</h2>
 
       <div className="flex space-x-4 mb-4">
         {['focus', 'shortBreak', 'longBreak'].map((m) => (
