@@ -9,22 +9,32 @@ export default function App() {
   const [mode, setMode] = useState('focus'); // 'focus', 'shortBreak', 'longBreak'
   const [pomodoroCount, setPomodoroCount] = useState(0);
 
+  const notificationSound = new Audio('src/assets/alarm.wav');
+
+  // Ask permission for notifications on load
   useEffect(() => {
-    setTimer(focusTime * 60);
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Reset timer if focus time changes
+  useEffect(() => {
+    if (mode === 'focus') {
+      setTimer(focusTime * 60);
+    }
   }, [focusTime]);
 
   useEffect(() => {
     let interval = null;
 
-    if (isActive) {
+    if (isActive && timer > 0) {
       interval = setInterval(() => {
-        setTimer((timer) => timer - 1);
+        setTimer((prevTimer) => prevTimer - 1);
       }, 1000);
-    } else if (!isActive && timer !== 0) {
-      clearInterval(interval);
     }
 
-    if (timer === 0) {
+    if (timer === 0 && isActive) {
       clearInterval(interval);
       handleTimerEnd();
     }
@@ -33,38 +43,59 @@ export default function App() {
   }, [isActive, timer]);
 
   const handleStartStop = () => {
-    setIsActive(!isActive);
+    setIsActive((prev) => !prev);
   };
 
   const handleReset = () => {
     setIsActive(false);
-    setTimer(focusTime * 60);
     setMode('focus');
+    setTimer(focusTime * 60);
   };
 
   const handleTimerEnd = () => {
+    setIsActive(false);
+    notificationSound.play();
+    showNotification();
+
     if (mode === 'focus') {
-      setPomodoroCount(pomodoroCount + 1);
-      if ((pomodoroCount + 1) % 4 === 0) {
+      const newCount = pomodoroCount + 1;
+      setPomodoroCount(newCount);
+      if (newCount % 4 === 0) {
         setMode('longBreak');
         setTimer(longBreakTime * 60);
       } else {
         setMode('shortBreak');
         setTimer(shortBreakTime * 60);
       }
-    } else if (mode === 'shortBreak') {
+    } else {
       setMode('focus');
       setTimer(focusTime * 60);
-    } else if (mode === 'longBreak') {
-      setMode('focus');
-      setTimer(focusTime * 60);
+    }
+  };
+
+  const showNotification = () => {
+    if (Notification.permission === 'granted') {
+      const title =
+        mode === 'focus'
+          ? 'Focus session complete!'
+          : mode === 'shortBreak'
+          ? 'Short break over!'
+          : 'Long break over!';
+      const body =
+        mode === 'focus'
+          ? 'Take a short break or continue when ready.'
+          : 'Time to get back to work!';
+
+      new Notification(title, { body });
     }
   };
 
   const formatTime = (time) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, '0')}:${seconds
+      .toString()
+      .padStart(2, '0')}`;
   };
 
   const handleFocusChange = (e) => {
@@ -114,38 +145,35 @@ export default function App() {
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Pomodoro Timer</h1>
 
       <div className="flex space-x-4 mb-4">
-        <button
-          className={`px-4 py-2 rounded-md ${
-            mode === 'focus' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-          onClick={() => handleModeChange('focus')}
-        >
-          Focus
-        </button>
-        <button
-          className={`px-4 py-2 rounded-md ${
-            mode === 'shortBreak' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-          onClick={() => handleModeChange('shortBreak')}
-        >
-          Short Break
-        </button>
-        <button
-          className={`px-4 py-2 rounded-md ${
-            mode === 'longBreak' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-          onClick={() => handleModeChange('longBreak')}
-        >
-          Long Break
-        </button>
+        {['focus', 'shortBreak', 'longBreak'].map((m) => (
+          <button
+            key={m}
+            className={`px-4 py-2 rounded-md ${
+              mode === m
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+            onClick={() => handleModeChange(m)}
+          >
+            {m === 'focus'
+              ? 'Focus'
+              : m === 'shortBreak'
+              ? 'Short Break'
+              : 'Long Break'}
+          </button>
+        ))}
       </div>
 
-      <div className="text-5xl font-bold mb-8 text-gray-900">{formatTime(timer)}</div>
+      <div className="text-5xl font-bold mb-8 text-gray-900">
+        {formatTime(timer)}
+      </div>
 
       <div className="flex space-x-4 mb-8">
         <button
           className={`px-6 py-3 rounded-md text-white font-semibold ${
-            isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+            isActive
+              ? 'bg-red-500 hover:bg-red-600'
+              : 'bg-green-500 hover:bg-green-600'
           }`}
           onClick={handleStartStop}
         >
@@ -161,35 +189,43 @@ export default function App() {
 
       <div className="flex space-x-4">
         <div>
-          <label className="block text-gray-700 text-sm font-bold mb-2">Focus Time (minutes):</label>
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Focus Time (minutes):
+          </label>
           <input
             type="number"
             value={focusTime}
             onChange={handleFocusChange}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none"
           />
         </div>
         <div>
-          <label className="block text-gray-700 text-sm font-bold mb-2">Short Break (minutes):</label>
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Short Break (minutes):
+          </label>
           <input
             type="number"
             value={shortBreakTime}
             onChange={handleShortBreakChange}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none"
           />
         </div>
         <div>
-          <label className="block text-gray-700 text-sm font-bold mb-2">Long Break (minutes):</label>
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Long Break (minutes):
+          </label>
           <input
             type="number"
             value={longBreakTime}
             onChange={handleLongBreakChange}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow border rounded w-full py-2 px-3 text-gray-700 focus:outline-none"
           />
         </div>
       </div>
 
-      <div className="mt-8 text-gray-600">Pomodoros Completed: {pomodoroCount}</div>
+      <div className="mt-8 text-gray-600">
+        Pomodoros Completed: {pomodoroCount}
+      </div>
     </div>
   );
 }
