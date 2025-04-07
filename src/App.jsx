@@ -143,6 +143,7 @@ export default function App() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 py-12">
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Pomodoro Timer</h1>
+      <h2 className='text-2xl font-bold mb-8 text-gray-400'>Developed By Arnab</h2>
 
       <div className="flex space-x-4 mb-4">
         {['focus', 'shortBreak', 'longBreak'].map((m) => (
